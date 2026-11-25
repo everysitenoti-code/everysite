@@ -2,7 +2,7 @@
 window.APP_CONFIG = {
   // ใช้หลังบ้านตัวไหน: 'apps' = Apps Script เดิม (ใช้งานจริงตอนนี้) | 'sb' = Supabase (ใหม่)
   // ทดสอบ Supabase เฉพาะในเบราว์เซอร์ตัวเอง: เปิดหน้าเว็บด้วย ?be=sb ต่อท้าย (เปิดด้วย ?be=apps เพื่อกลับ)
-  BACKEND: 'apps',
+  BACKEND: 'sb',
 
   // --- หลังบ้านเดิม (Apps Script ระบบเบิกโบรชัวร์) ลงท้ายด้วย /exec
   API_URL: 'https://script.google.com/macros/s/AKfycbwUM6k-YnMq7YviShAibGErYXH6Yyse3EKyo7MY5KuHf3TIDfxqkJKhvsMxQm6bTwil/exec',
