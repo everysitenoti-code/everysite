@@ -131,16 +131,64 @@
     }).then(function (txt) {
       var json;
       try { json = JSON.parse(txt); } catch (e) { throw new Error('เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง กรุณาลองใหม่'); }
-      if (json && json.ok === true) return json.data;
-      if (json && json.ok === false) throw new Error(json.error || 'เกิดข้อผิดพลาดจากระบบ');
+      if (json && json.ok === true) { if (json.session) saveTok(params, json.session); return json.data; }
+      if (json && json.ok === false) { var er = new Error(json.error || 'เกิดข้อผิดพลาดจากระบบ'); if (json.code === 'session') er.sessionExpired = true; throw er; }
       throw new Error('ระบบหลังบ้านตอบผิดรูปแบบ: ' + String((json && (json.message || json.hint)) || txt).slice(0, 120));
+    });
+  }
+
+  // ---- เซสชัน Admin (โหมด Supabase): ล็อกอินครั้งแรกด้วยรหัสผ่าน แล้วใช้ token แทน ----
+  var PLACEHOLDER = '\u2022session';
+  function ss() { try { return window.sessionStorage; } catch (e) { return null; } }
+  function loadTok(user) {
+    var st = ss(); if (!st || !user) return '';
+    var t = st.getItem('es_admin_tok'), u = st.getItem('es_admin_tok_user');
+    return (t && u === user) ? t : '';
+  }
+  function saveTok(params, tok) {
+    var st = ss(); if (!st || !params || !params.adminUsername) return;
+    st.setItem('es_admin_tok', tok); st.setItem('es_admin_tok_user', params.adminUsername);
+    // ไม่เก็บรหัสผ่านจริงไว้ใน sessionStorage อีก (ใช้ตัวแทนเพื่อให้หน้าเว็บรู้ว่ายังล็อกอินอยู่)
+    setTimeout(scrubPw, 100); setTimeout(scrubPw, 1500);
+  }
+  function scrubPw() { var st = ss(); if (st && st.getItem('es_admin_tok') && st.getItem('adminPassword') && st.getItem('adminPassword') !== PLACEHOLDER) st.setItem('adminPassword', PLACEHOLDER); }
+  function clearTok() { var st = ss(); if (st) { st.removeItem('es_admin_tok'); st.removeItem('es_admin_tok_user'); } }
+
+  function callSbAuth(action, params) {
+    var p = Object.assign({}, params || {});
+    var hasAdmin = Object.prototype.hasOwnProperty.call(p, 'adminUsername');
+    if (!hasAdmin) return callSb(action, p);
+    var st = ss();
+    // ออกจากระบบแล้ว (username ถูกลบ) = ทิ้ง token เก่า
+    if (st && !st.getItem('adminUsername')) clearTok();
+    var realPw = (p.adminPassword && p.adminPassword !== PLACEHOLDER) ? p.adminPassword : '';
+    var tok = loadTok(p.adminUsername);
+    if (tok) scrubPw();
+    var first = Object.assign({}, p); delete first.adminPassword;
+    if (tok) first.adminToken = tok; else if (realPw) first.adminPassword = realPw;
+    return callSb(action, first).catch(function (e) {
+      if (e && e.sessionExpired) {
+        clearTok();
+        if (realPw) {
+          var again = Object.assign({}, p); delete again.adminToken; again.adminPassword = realPw;
+          return callSb(action, again);
+        }
+        var x = new Error('เซสชันหมดอายุ กรุณาออกจากระบบแล้วเข้าสู่ระบบใหม่'); throw x;
+      }
+      throw e;
     });
   }
 
   function apiCall(fnName, params) {
     var action = ACTION_MAP[fnName];
     if (!action) return Promise.reject(new Error('ไม่รู้จักคำสั่ง: ' + fnName));
-    var p = (backend() === 'sb') ? callSb(action, params) : callApps(action, params);
+    var p;
+    if (backend() === 'sb') {
+      if (action === 'adminUploadCoverImage') {
+        return Promise.reject(new Error('โหมด Supabase ยังไม่รองรับอัปโหลดรูปปกในหน้านี้ กรุณาวางลิงก์รูปแทน (ช่อง URL รูปปก)'));
+      }
+      p = callSbAuth(action, params);
+    } else p = callApps(action, params);
     return p.catch(function (e) { throw mapNetErr(e); });
   }
   window.apiCall = apiCall;
