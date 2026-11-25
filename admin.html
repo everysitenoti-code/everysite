@@ -1239,11 +1239,10 @@
     });
   }
   const gasRun = __makeRunner({});
-  // ปุ่มกลับหน้าเข้าสู่ระบบ: ชี้ไปหน้า Login ที่ตั้งไว้ใน config.js
+  // ปุ่มกลับหน้าเข้าสู่ระบบของผู้ใช้ = หน้า User ของระบบเบิกโบรชัวร์ (index.html ในเว็บเดียวกัน)
   (function () {
     var a = document.getElementById('backToUserLogin');
-    var u = (window.APP_CONFIG && window.APP_CONFIG.LOGIN_URL) || 'index.html';
-    if (a) a.setAttribute('href', u);
+    if (a) a.setAttribute('href', 'index.html');
   })();
 
   // ===== State =====
