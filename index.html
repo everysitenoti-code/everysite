@@ -368,7 +368,7 @@
     .profile-card .quota-bar-fill { background: linear-gradient(90deg, #9cc9ff, #fff); box-shadow: 0 0 12px rgba(255,255,255,.6); transition: width .8s var(--ease); }
     .profile-card .quota-exhausted-banner { background: rgba(255,255,255,.95); border-color: transparent; }
     /* การ์ดติดต่อต้องอยู่เหนือการ์ดโควต้า ไม่งั้นรายชื่อ Admin ที่เลื่อนลงมาจะถูกการ์ดโควต้าทับ */
-    .contact-card { position: relative; z-index: 5; animation: up .8s var(--ease) .2s both; }
+    .contact-card { position: relative; z-index: 40; animation: up .8s var(--ease) .2s both; } /* สูงกว่าแถบค้นหา (filter-bar z=5) เพื่อให้รายชื่อ Admin ไม่ถูกแถบค้นหาทับ */
     .profile-card { z-index: 1; }
     .admin-pop { z-index: 30; }
     .contact-btn { border-radius: 14px; transition: transform .2s var(--ease), box-shadow .2s; }
