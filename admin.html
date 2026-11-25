@@ -1876,7 +1876,7 @@
       ? ('✅ เปิดอยู่' + (bkData.lastAutoText ? ' • สำรองอัตโนมัติล่าสุด ' + escHtml(bkData.lastAutoText) : ' • ยังไม่มีรอบแรก (จะสำรองคืนนี้)'))
       : 'ปิดอยู่ — ติ๊กช่องด้านบนแล้วกดบันทึกเพื่อเปิด';
     document.getElementById('bkHint').innerHTML = bkData.folderUrl
-      ? ('ไฟล์สำรองอยู่ที่ <a href="' + escHtml(bkData.folderUrl) + '" target="_blank" rel="noopener">โฟลเดอร์ Brochure Stock Backups ใน Drive</a> (มีรหัสผ่านที่เข้ารหัสของ Admin อยู่ในไฟล์ — อย่าแชร์โฟลเดอร์นี้)') : '';
+      ? ('ไฟล์สำรองอยู่ที่ <a href="' + escHtml(bkData.folderUrl) + '" target="_blank" rel="noopener">โฟลเดอร์ Brochure Stock Backups ใน Drive</a> (มีรหัสผ่านที่เข้ารหัสของ Admin อยู่ในไฟล์ — อย่าแชร์โฟลเดอร์นี้)') : 'ไฟล์สำรองเก็บอยู่ในฐานข้อมูลของระบบ (ฟรี 500 MB — เก็บรอบล่าสุดตามที่ตั้งไว้) กด "⬇ ดาวน์โหลด" เพื่อเก็บสำเนานอกระบบอีกชั้น (ไฟล์มีรหัสผ่านที่เข้ารหัสของ Admin อยู่ — อย่าแชร์)';
     const wrap = document.getElementById('bkList');
     if (!bkData.backups.length) { wrap.innerHTML = '<p class="empty-state">ยังไม่มีไฟล์สำรอง — กด "สำรองตอนนี้" เพื่อสร้างไฟล์แรก</p>'; return; }
     wrap.innerHTML = bkData.backups.map(function (b, i) {
@@ -1888,12 +1888,29 @@
         '<div style="font-size:12px;color:#777;margin:4px 0 8px;line-height:1.6;">' + escHtml(summarizeCounts_(b.counts)) + (b.by ? '<br>โดย ' + escHtml(b.by) : '') + '</div>' +
         '<div class="stock-btn-row">' +
           '<button class="btn btn-primary btn-sm" data-bkrs="' + i + '">⏪ กู้คืน</button>' +
-          '<a class="btn btn-outline btn-sm" href="' + escHtml(b.url) + '" target="_blank" rel="noopener" style="text-decoration:none;text-align:center;">เปิดไฟล์</a>' +
+          (b.url ? '<a class="btn btn-outline btn-sm" href="' + escHtml(b.url) + '" target="_blank" rel="noopener" style="text-decoration:none;text-align:center;">เปิดไฟล์</a>' : '<button class="btn btn-outline btn-sm" data-bkdl="' + i + '">⬇ ดาวน์โหลด</button>') +
           '<button class="btn btn-outline btn-sm" data-bkdel="' + i + '" style="color:var(--red);border-color:var(--red);">🗑</button>' +
         '</div></div>';
     }).join('');
     wrap.querySelectorAll('[data-bkrs]').forEach(function (el) { el.onclick = function () { openRestoreModal(bkData.backups[Number(el.getAttribute('data-bkrs'))]); }; });
+    wrap.querySelectorAll('[data-bkdl]').forEach(function (el) { el.onclick = function () { downloadBackupFile(bkData.backups[Number(el.getAttribute('data-bkdl'))], el); }; });
     wrap.querySelectorAll('[data-bkdel]').forEach(function (el) { el.onclick = function () { deleteBackupFile(bkData.backups[Number(el.getAttribute('data-bkdel'))]); }; });
+  }
+
+  function downloadBackupFile(b, btn) {
+    if (!b) return;
+    if (btn) btn.disabled = true;
+    showToast('กำลังเตรียมไฟล์...');
+    apiCall('api_admin_exportBackup', { adminUsername: adminUsername, adminPassword: adminPassword, id: b.id })
+      .then(function (res) {
+        var blob = new Blob([res.json], { type: 'application/json' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = res.filename || 'backup.json';
+        document.body.appendChild(a); a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+      })
+      .catch(function (e) { showToast(bkErr(e)); })
+      .then(function () { if (btn) btn.disabled = false; });
   }
 
   function createBackupNow() {

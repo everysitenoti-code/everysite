@@ -61,7 +61,8 @@
   "api_admin_setAutoBackup": "adminSetAutoBackup",
   "api_admin_deleteBackup": "adminDeleteBackup",
   "api_admin_restoreBackup": "adminRestoreBackup",
-  "api_admin_resetData": "adminResetData"
+  "api_admin_resetData": "adminResetData",
+  "api_admin_exportBackup": "adminExportBackup"
 };
   var TIMEOUT_MS = 90000;
 
