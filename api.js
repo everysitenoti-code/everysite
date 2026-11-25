@@ -62,6 +62,7 @@
   "api_admin_deleteBackup": "adminDeleteBackup",
   "api_admin_restoreBackup": "adminRestoreBackup",
   "api_admin_resetData": "adminResetData",
+  "api_admin_adjustStock": "adminAdjustStock",
   "api_admin_exportBackup": "adminExportBackup"
 };
   var TIMEOUT_MS = 90000;
@@ -193,4 +194,5 @@
     return p.catch(function (e) { throw mapNetErr(e); });
   }
   window.apiCall = apiCall;
+  window.apiBackend = backend;
 })();
