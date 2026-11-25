@@ -1099,12 +1099,26 @@
 
 <div id="restockModalOverlay" class="modal-overlay hidden">
   <div class="modal-sheet">
-    <p class="modal-title">เติมสต็อก <button class="modal-close" onclick="closeModal('restockModalOverlay')">✕</button></p>
+    <p class="modal-title">จัดการสต็อก <button class="modal-close" onclick="closeModal('restockModalOverlay')">✕</button></p>
     <p class="field-label" style="margin-top:0;" id="restockBrochureName"></p>
-    <p class="field-label">จำนวนที่เติม (ใบ)</p>
-    <input class="field-input" type="number" id="restockQty" min="1">
+    <div id="stockModeTabs" style="display:none; gap:6px; margin:8px 0 4px;">
+      <button type="button" class="btn btn-sm" id="stockModeAddBtn" style="flex:1;" onclick="setStockMode('add')">➕ เติมสต็อก</button>
+      <button type="button" class="btn btn-sm" id="stockModeAdjBtn" style="flex:1;" onclick="setStockMode('adj')">✏️ ปรับยอดให้ตรงของจริง</button>
+    </div>
+    <div id="restockPaneAdd">
+      <p class="field-label">จำนวนที่เติม (ใบ)</p>
+      <input class="field-input" type="number" id="restockQty" min="1">
+    </div>
+    <div id="restockPaneAdj" style="display:none;">
+      <p class="field-label" id="adjInfo" style="line-height:1.6;"></p>
+      <p class="field-label">ยอดสต็อกที่ถูกต้อง (ใบ)</p>
+      <input class="field-input" type="number" id="adjNewQty" min="0" oninput="updateAdjDiff()">
+      <p class="field-label" id="adjDiff" style="font-weight:600;"></p>
+      <p class="field-label">เหตุผล (จำเป็น)</p>
+      <input class="field-input" type="text" id="adjReason" maxlength="100" placeholder="เช่น นับสต็อกจริงแล้วไม่ตรง / ชำรุด / สูญหาย">
+    </div>
     <div class="login-error" id="restockError"></div>
-    <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="submitRestock()">เติมสต็อก</button>
+    <button class="btn btn-primary btn-block" id="restockSubmitBtn" style="margin-top:12px;" onclick="submitRestock()">เติมสต็อก</button>
   </div>
 </div>
 
@@ -2737,14 +2751,62 @@
       .api_admin_toggleBrochureStatus({ adminUsername: adminUsername, adminPassword: adminPassword, brochureId: brochureId, status: newStatus });
   }
 
+  let stockMode = 'add';
+  function canAdjustStock() { return typeof window.apiBackend === 'function' && window.apiBackend() === 'sb'; }
+  function restockTarget_() {
+    return (stockCache || []).filter(function (x) { return String(x.brochureId) === String(restockTargetBrochureId); })[0] || null;
+  }
   function openRestockModal(brochureId, name) {
     restockTargetBrochureId = brochureId;
     document.getElementById('restockBrochureName').textContent = name;
     document.getElementById('restockQty').value = '';
+    document.getElementById('adjNewQty').value = '';
+    document.getElementById('adjReason').value = '';
     document.getElementById('restockError').textContent = '';
+    document.getElementById('stockModeTabs').style.display = canAdjustStock() ? 'flex' : 'none';
+    setStockMode('add');
     document.getElementById('restockModalOverlay').classList.remove('hidden');
   }
+  function setStockMode(m) {
+    stockMode = (m === 'adj' && canAdjustStock()) ? 'adj' : 'add';
+    const adj = stockMode === 'adj';
+    document.getElementById('restockPaneAdd').style.display = adj ? 'none' : '';
+    document.getElementById('restockPaneAdj').style.display = adj ? '' : 'none';
+    document.getElementById('restockSubmitBtn').textContent = adj ? 'บันทึกการปรับสต็อก' : 'เติมสต็อก';
+    document.getElementById('stockModeAddBtn').className = 'btn btn-sm ' + (adj ? 'btn-outline' : 'btn-primary');
+    document.getElementById('stockModeAdjBtn').className = 'btn btn-sm ' + (adj ? 'btn-primary' : 'btn-outline');
+    document.getElementById('restockError').textContent = '';
+    if (adj) {
+      const b = restockTarget_();
+      const cur = b ? Number(b.stockQty) || 0 : 0;
+      const res = b && b.reservedQty ? Number(b.reservedQty) : 0;
+      document.getElementById('adjInfo').innerHTML = 'ยอดในระบบตอนนี้: <b>' + cur + ' ใบ</b>' +
+        (res > 0 ? '<br>ในจำนวนนี้ยังไม่รวม <b>' + res + ' ใบ</b> ที่ตัดออกไปแล้วสำหรับคำขอที่ยังไม่ส่ง (ของจริงยังอยู่ในคลัง รอจัดส่ง) — ตอนนับ ให้ <b>ไม่นับ</b>ของที่แยกไว้ให้คำขอเหล่านั้น' : '') +
+        '<br>นับของที่พร้อมแจกในคลังแล้วกรอกยอดที่ถูกต้องด้านล่าง';
+      updateAdjDiff();
+    }
+  }
+  function updateAdjDiff() {
+    const b = restockTarget_(), el = document.getElementById('adjDiff');
+    const v = document.getElementById('adjNewQty').value;
+    if (v === '' || !b) { el.textContent = ''; return; }
+    const d = Number(v) - (Number(b.stockQty) || 0);
+    el.textContent = d === 0 ? 'ยอดเท่าเดิม' : ('ผลต่าง: ' + (d > 0 ? '+' : '') + d + ' ใบ');
+    el.style.color = d < 0 ? '#c0392b' : (d > 0 ? '#1e8449' : '');
+  }
   function submitRestock() {
+    if (stockMode === 'adj') {
+      const raw = document.getElementById('adjNewQty').value;
+      const nq = Number(raw), why = document.getElementById('adjReason').value.trim();
+      const er = document.getElementById('restockError');
+      if (raw === '' || !(nq >= 0) || Math.floor(nq) !== nq) { er.textContent = 'กรุณากรอกยอดสต็อกที่ถูกต้อง (จำนวนเต็ม 0 ขึ้นไป)'; return; }
+      if (!why) { er.textContent = 'กรุณาระบุเหตุผลในการปรับสต็อก'; return; }
+      gasRun
+        .withSuccessHandler(function (res) { closeModal('restockModalOverlay'); showToast(res.message); loadStock(); })
+        .withFailureHandler(function (err) { er.textContent = errMsg(err); })
+        .api_admin_adjustStock({ adminUsername: adminUsername, adminPassword: adminPassword, brochureId: restockTargetBrochureId, newQty: nq, reason: why });
+      return;
+    }
     const qty = Number(document.getElementById('restockQty').value);
     if (!qty || qty <= 0) { document.getElementById('restockError').textContent = 'กรุณากรอกจำนวนให้ถูกต้อง'; return; }
     gasRun
