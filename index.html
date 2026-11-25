@@ -371,6 +371,9 @@
     .contact-card { position: relative; z-index: 40; animation: up .8s var(--ease) .2s both; } /* สูงกว่าแถบค้นหา (filter-bar z=5) เพื่อให้รายชื่อ Admin ไม่ถูกแถบค้นหาทับ */
     .profile-card { z-index: 1; }
     .admin-pop { z-index: 30; }
+    body.pop-open .tabbar { opacity: 0; visibility: hidden; pointer-events: none; }
+    .tabbar { transition: opacity .15s ease, visibility 0s linear .15s; }
+    body.pop-open .tabbar { transition: opacity .15s ease; }
     .contact-btn { border-radius: 14px; transition: transform .2s var(--ease), box-shadow .2s; }
     .contact-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(11,61,145,.12); }
     .announcement-card { border-radius: 20px; box-shadow: 0 8px 24px rgba(224,138,28,.12); }
@@ -1342,6 +1345,19 @@
     if (open) renderAdminContacts(adminContactsData); // คำนวณสถานะตามเวลาปัจจุบันใหม่ทุกครั้งที่เปิด
     document.getElementById('adminPopover').classList.toggle('open', open);
     document.getElementById('contactAdminBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
+    document.body.classList.toggle('pop-open', !!open); // ซ่อนแถบเมนูล่าง (หน้าแรก/ประวัติ) ชั่วคราวให้รายชื่อไม่ถูกบัง
+    if (open) {
+      // เลื่อนหน้าให้รายชื่อ Admin เห็นเต็ม (กรณีจอเตี้ย รายชื่อจะยาวเลยขอบจอล่าง)
+      setTimeout(function () {
+        const pop = document.getElementById('adminPopover'), btn = document.getElementById('contactAdminBtn');
+        if (!pop.classList.contains('open')) return;
+        const over = pop.getBoundingClientRect().bottom - (window.innerHeight - 12);
+        if (over > 0) {
+          const room = Math.max(0, btn.getBoundingClientRect().top - 12);
+          window.scrollBy({ top: Math.min(over, room), behavior: 'smooth' });
+        }
+      }, 300);
+    }
   }
   function toggleAdminPopover(ev) {
     ev.stopPropagation();
